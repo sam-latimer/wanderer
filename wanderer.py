@@ -488,8 +488,8 @@ while running:
     view_min_y = min_y - BUFFER_TILES
     view_max_y = max_y + BUFFER_TILES
 
-    view_width = view_max_x - view_min_x + 1
-    view_height = view_max_y - view_min_y + 1
+    view_width = int(view_max_x - view_min_x) + 1
+    view_height = int(view_max_y - view_min_y) + 1
 
     # Use GAME_WIDTH instead of SCREEN_WIDTH for tile size calculation
     tile_size_x = GAME_WIDTH // view_width
