@@ -13,7 +13,7 @@ BUFFER_TILES = 1
 PAN_SMOOTHING = 0.85  # Higher = smoother but slower response (0-1)
 MOVE_COOLDOWN = 0.15  # Cooldown between moves in seconds
 
-# Colors
+# Colorss
 BACKGROUND_COLOR = (30, 30, 30)
 TRAIL_START_COLOR = (0, 200, 255)
 TRAIL_END_COLOR = (45, 45, 45)  # Slightly lighter than background so last trail tile is visible
