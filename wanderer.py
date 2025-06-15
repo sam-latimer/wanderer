@@ -395,8 +395,8 @@ tail = [{
 backpack = {}
 BACKPACK_CAPACITY = 20
 
-camera_offset = [0.0, 0.0]  # Use floats for smoother interpolation
-target_offset = [0.0, 0.0]
+camera_offset = [0, 0]  # Use floats for smoother interpolation
+target_offset = [0, 0]  # do not use floats, these need to be integers later
 move_timer = 0  # Timer for movement cooldown
 
 pygame.init()
