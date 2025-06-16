@@ -26,8 +26,8 @@ HUD_BORDER_COLOR = (60, 60, 60)
 # Default fallback color
 DEFAULT_ROOM_COLOR = (60, 60, 60)
 
-ROOMS_TSV = 'wanderer content - rooms.tsv'
-ITEMS_TSV = 'wanderer content - items.tsv'
+ROOMS_TSV = 'wanderer - rooms.tsv'
+ITEMS_TSV = 'wanderer - items.tsv'
 
 
 
@@ -226,14 +226,14 @@ def generate_room_loot(room_data):
 
 
 def move_player(target_pos):
-    global player_pos, tail
+    global player_pos, trail
 
     # Check if target position is already in tail
     existing_entry = None
-    for entry in tail:
+    for entry in trail:
         if entry['pos'] == target_pos:
             existing_entry = entry
-            tail.remove(entry)
+            trail.remove(entry)
             break
 
     # If not in tail, create new entry with random room
@@ -249,12 +249,12 @@ def move_player(target_pos):
         }
 
     # Add to front of trail
-    tail.insert(0, existing_entry)
+    trail.insert(0, existing_entry)
     player_pos = target_pos
 
     # Remove oldest memories if over limit
-    if len(tail) > MEMORY_LIMIT:
-        tail.pop()
+    if len(trail) > MEMORY_LIMIT:
+        trail.pop()
 
 
 def wrap_text(text, font, max_width):
@@ -288,7 +288,7 @@ def draw_hud(screen, font):
     pygame.draw.line(screen, HUD_BORDER_COLOR, (GAME_WIDTH, 0), (GAME_WIDTH, SCREEN_HEIGHT), 2)
     
     # Get current room info
-    current_entry = tail[0]
+    current_entry = trail[0]
     current_room = current_entry['room']
     
     y_offset = 10
@@ -384,7 +384,7 @@ player_pos = (0, 0)
 initial_room = generate_room(weighted_rooms)
 # Generate loot for the initial room too
 initial_loot = generate_room_loot(initial_room)
-tail = [{
+trail = [{
     'pos'   : player_pos,
     'room'  : initial_room,
     'loot'  : initial_loot,
@@ -444,7 +444,7 @@ while running:
 
             # Debug: Print current room info when pressing SPACE
             if event.key == pygame.K_SPACE:
-                current_entry = tail[0]
+                current_entry = trail[0]
                 current_room = current_entry['room']
                 print(f"Current room: {current_room.get('name', 'Unknown')}")
                 print(f"Type: {current_room.get('type', 'Unknown')}")
@@ -455,7 +455,7 @@ while running:
 
             # Loot collection with L key
             if event.key == pygame.K_l:
-                current_entry = tail[0]
+                current_entry = trail[0]
                 if not current_entry.get('looted', False) and current_entry.get('loot', []):
                     loot_items = current_entry['loot']
                     collected_items = []
@@ -478,7 +478,7 @@ while running:
                         print("No loot in this room.")
 
     # Calculate view bounds from tail positions
-    positions = [entry['pos'] for entry in tail]
+    positions = [entry['pos'] for entry in trail]
     xs = [x for x, y in positions]
     ys = [y for x, y in positions]
     min_x, max_x = min(xs), max(xs)
@@ -521,7 +521,7 @@ while running:
                 pygame.draw.rect(screen, TILE_BORDER_COLOR, rect, 1)
 
     # 2. Draw trail gradient (excluding current player position)
-    trail_without_player = tail[1:]  # Exclude current position
+    trail_without_player = trail[1:]  # Exclude current position
     for idx, entry in enumerate(reversed(trail_without_player)):
         color = get_gradient_color(idx, len(trail_without_player))
         x, y = entry['pos']
@@ -532,7 +532,7 @@ while running:
             pygame.draw.rect(screen, color, rect)
 
     # 3. Draw room content (only for tiles in memory trail)
-    for entry in tail:
+    for entry in trail:
         x, y = entry['pos']
         if view_min_x <= x <= view_max_x and view_min_y <= y <= view_max_y:
             screen_x = camera_offset[0] + (x - view_min_x) * tile_size
@@ -571,7 +571,7 @@ while running:
                                      (center_x, center_y + sparkle_size), 2)
 
     # 4. Draw player
-    px, py = tail[0]['pos']
+    px, py = trail[0]['pos']
     screen_x = camera_offset[0] + (px - view_min_x) * tile_size
     screen_y = camera_offset[1] + (py - view_min_y) * tile_size
     if screen_x < GAME_WIDTH:  # Only draw if in game area
