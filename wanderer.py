@@ -1,7 +1,7 @@
 import pygame
 import random
 import csv
-import os
+# import os
 
 # --- Constants ---
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
@@ -43,11 +43,11 @@ def get_gradient_color(index, total, start=TRAIL_START_COLOR, end=TRAIL_END_COLO
 
 
 def parse_color(color_str):
-    """Parse color from TSV - supports hex (#FFFFFF) or RGB (255,255,255)"""
+    """Parse color from TSV - supports hex (#FFFFFF), RGB (255,255,255), or color names"""
     if not color_str or color_str.strip() == '':
         return DEFAULT_ROOM_COLOR
 
-    color_str = color_str.strip()
+    color_str = color_str.strip().lower()
 
     # Handle hex colors
     if color_str.startswith('#'):
@@ -67,7 +67,11 @@ def parse_color(color_str):
         except ValueError:
             pass
 
-    return DEFAULT_ROOM_COLOR
+    # Handle color names using pygame's color definitions
+    try:
+        return pygame.Color(color_str)[:3]  # Convert to RGB tuple
+    except ValueError:
+        return DEFAULT_ROOM_COLOR
 
 
 def load_tsv_data(filename):
@@ -494,7 +498,7 @@ while running:
     # Use GAME_WIDTH instead of SCREEN_WIDTH for tile size calculation
     tile_size_x = GAME_WIDTH // view_width
     tile_size_y = SCREEN_HEIGHT // view_height
-    tile_size = min(tile_size_x, tile_size_y)
+    tile_size = int(min(tile_size_x, tile_size_y))
 
     grid_width_px = view_width * tile_size
     grid_height_px = view_height * tile_size
