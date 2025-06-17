@@ -394,22 +394,6 @@ print(f"Created weighted room list with {len(weighted_rooms)} entries")
 print(f"Loaded {len(items_data)} item types")
 print(f"Created weighted item list with {len(weighted_items)} entries")
 
-# Display room types for debugging
-room_types = {}
-for room in rooms_data:
-    # flatten the data
-    room = dict(room)
-
-    room_type = room.get('name', 'Unknown')
-    print(f"Room type: {room_type}")
-    room_types[room_type] = room_types.get(room_type, 0) + 1
-
-
-
-print("Room distribution:")
-for room_type, count in room_types.items():
-    print(f"  {room_type}: {count}")
-
 # --- Game State ---
 player_pos = (0, 0)
 initial_room = generate_room(weighted_rooms)
