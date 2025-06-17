@@ -1,7 +1,6 @@
 import pygame
 import random
 import csv
-# import os
 
 # --- Constants ---
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
@@ -16,7 +15,7 @@ MOVE_COOLDOWN = 0.15  # Cooldown between moves in seconds
 # Colorss
 BACKGROUND_COLOR = (30, 30, 30)
 TRAIL_START_COLOR = (0, 200, 255)
-TRAIL_END_COLOR = (45, 45, 45)  # Slightly lighter than background so last trail tile is visible
+TRAIL_END_COLOR = (45, 45, 45)  # Slightly lighter than the background so last trail tile is visible
 PLAYER_COLOR = (255, 255, 255)
 TILE_BORDER_COLOR = (50, 50, 50)
 HUD_BG_COLOR = (20, 20, 20)
@@ -105,6 +104,7 @@ def load_room_data():
     return rooms_data
 
 
+# noinspection DuplicatedCode
 def create_weighted_room_list(rooms_data):
     """Create a weighted list of rooms based on probability"""
     weighted_rooms = []
@@ -282,6 +282,78 @@ def wrap_text(text, font, max_width):
     return lines
 
 
+def draw_room_info(screen, font, hud_current_room, start_pos, padding):
+    """Draw room name and type information"""
+    x, y_offset = start_pos
+    
+    room_name = hud_current_room.get('name', 'Unknown')
+    text_surface = font.render(f"Room: {room_name}", True, HUD_TEXT_COLOR)
+    screen.blit(text_surface, (x + padding, y_offset))
+    y_offset += 25
+
+    hud_room_type = hud_current_room.get('type', 'Unknown')
+    text_surface = font.render(f"Type: {hud_room_type}", True, HUD_TEXT_COLOR)
+    screen.blit(text_surface, (x + padding, y_offset))
+    y_offset += 25
+    
+    return y_offset
+
+def draw_entry_text(screen, font, entry_text, start_pos, padding, text_width):
+    """Draw wrapped entry text"""
+    x, y_offset = start_pos
+    wrapped_lines = wrap_text(entry_text, font, text_width)
+    for line in wrapped_lines:
+        text_surface = font.render(line, True, HUD_TEXT_COLOR)
+        screen.blit(text_surface, (x + padding, y_offset))
+        y_offset += 20
+    
+    return y_offset + 10
+
+def draw_loot_info(screen, font, hud_current_entry, start_pos, padding):
+    """Draw loot information"""
+    x, y_offset = start_pos
+    hud_loot_items = hud_current_entry.get('loot', [])
+    hud_looted = hud_current_entry.get('looted', False)
+    
+    if hud_loot_items:
+        if hud_looted:
+            text_surface = font.render("Loot: (taken)", True, (128, 128, 128))
+            screen.blit(text_surface, (x + padding, y_offset))
+            y_offset += 20
+        else:
+            text_surface = font.render("Loot:", True, HUD_TEXT_COLOR)
+            screen.blit(text_surface, (x + padding, y_offset))
+            y_offset += 20
+
+            for hud_item in hud_loot_items:
+                text_surface = font.render(f"  {hud_item}", True, (255, 255, 0))
+                screen.blit(text_surface, (x + padding, y_offset))
+                y_offset += 18
+    else:
+        text_surface = font.render("Loot: None", True, (128, 128, 128))
+        screen.blit(text_surface, (x + padding, y_offset))
+        y_offset += 20
+    
+    return y_offset + 15
+
+def draw_backpack_info(screen, font, backpack, start_pos, padding):
+    """Draw backpack contents"""
+    x, y_offset = start_pos
+    text_surface = font.render(f"Backpack ({sum(backpack.values())}/{BACKPACK_CAPACITY}):", True, HUD_TEXT_COLOR)
+    screen.blit(text_surface, (x + padding, y_offset))
+    y_offset += 20
+    
+    if backpack:
+        for item, count in backpack.items():
+            text_surface = font.render(f"  {item} x{count}", True, (200, 200, 200))
+            screen.blit(text_surface, (x + padding, y_offset))
+            y_offset += 18
+    else:
+        text_surface = font.render("  (empty)", True, (128, 128, 128))
+        screen.blit(text_surface, (x + padding, y_offset))
+    
+    return y_offset
+
 def draw_hud(screen, font):
     """Draw the HUD panel on the right side"""
     # Draw HUD background
@@ -292,73 +364,22 @@ def draw_hud(screen, font):
     pygame.draw.line(screen, HUD_BORDER_COLOR, (GAME_WIDTH, 0), (GAME_WIDTH, SCREEN_HEIGHT), 2)
     
     # Get current room info
-    current_entry = trail[0]
-    current_room = current_entry['room']
+    hud_current_entry = trail[0]
+    hud_current_room = hud_current_entry['room']
     
-    y_offset = 10
     padding = 10
     text_width = HUD_WIDTH - padding * 2
+    y_offset = 10
     
-    # Room name
-    room_name = current_room.get('name', 'Unknown')
-    text_surface = font.render(f"Room: {room_name}", True, HUD_TEXT_COLOR)
-    screen.blit(text_surface, (GAME_WIDTH + padding, y_offset))
-    y_offset += 25
+    # Draw each section
+    y_offset = draw_room_info(screen, font, hud_current_room, (GAME_WIDTH, y_offset), padding)
     
-    # Room type
-    room_type = current_room.get('type', 'Unknown')
-    text_surface = font.render(f"Type: {room_type}", True, HUD_TEXT_COLOR)
-    screen.blit(text_surface, (GAME_WIDTH + padding, y_offset))
-    y_offset += 25
+    entry_text = hud_current_room.get('entry_text', 'No description')
+    y_offset = draw_entry_text(screen, font, entry_text, (GAME_WIDTH, y_offset), padding, text_width)
     
-    # Entry text (wrapped)
-    entry_text = current_room.get('entry_text', 'No description')
-    wrapped_lines = wrap_text(entry_text, font, text_width)
-    for line in wrapped_lines:
-        text_surface = font.render(line, True, HUD_TEXT_COLOR)
-        screen.blit(text_surface, (GAME_WIDTH + padding, y_offset))
-        y_offset += 20
+    y_offset = draw_loot_info(screen, font, hud_current_entry, (GAME_WIDTH, y_offset), padding)
     
-    y_offset += 10
-    
-    # Loot status
-    loot_items = current_entry.get('loot', [])
-    looted = current_entry.get('looted', False)
-    
-    if loot_items:
-        if looted:
-            text_surface = font.render("Loot: (taken)", True, (128, 128, 128))
-            screen.blit(text_surface, (GAME_WIDTH + padding, y_offset))
-            y_offset += 20
-        else:
-            text_surface = font.render("Loot:", True, HUD_TEXT_COLOR)
-            screen.blit(text_surface, (GAME_WIDTH + padding, y_offset))
-            y_offset += 20
-            
-            for item in loot_items:
-                text_surface = font.render(f"  {item}", True, (255, 255, 0))
-                screen.blit(text_surface, (GAME_WIDTH + padding, y_offset))
-                y_offset += 18
-    else:
-        text_surface = font.render("Loot: None", True, (128, 128, 128))
-        screen.blit(text_surface, (GAME_WIDTH + padding, y_offset))
-        y_offset += 20
-    
-    y_offset += 15
-    
-    # Backpack
-    text_surface = font.render(f"Backpack ({sum(backpack.values())}/{BACKPACK_CAPACITY}):", True, HUD_TEXT_COLOR)
-    screen.blit(text_surface, (GAME_WIDTH + padding, y_offset))
-    y_offset += 20
-    
-    if backpack:
-        for item in backpack.items():
-            text_surface = font.render(f"  {item[0]} x{item[1]}", True, (200, 200, 200))
-            screen.blit(text_surface, (GAME_WIDTH + padding, y_offset))
-            y_offset += 18
-    else:
-        text_surface = font.render("  (empty)", True, (128, 128, 128))
-        screen.blit(text_surface, (GAME_WIDTH + padding, y_offset))
+    draw_backpack_info(screen, font, backpack, (GAME_WIDTH, y_offset), padding)
 
 
 # --- Load Game Data ---
@@ -375,9 +396,15 @@ print(f"Created weighted item list with {len(weighted_items)} entries")
 
 # Display room types for debugging
 room_types = {}
-for room in weighted_rooms:
+for room in rooms_data:
+    # flatten the data
+    room = dict(room)
+
     room_type = room.get('name', 'Unknown')
+    print(f"Room type: {room_type}")
     room_types[room_type] = room_types.get(room_type, 0) + 1
+
+
 
 print("Room distribution:")
 for room_type, count in room_types.items():
@@ -448,35 +475,35 @@ while running:
 
             # Debug: Print current room info when pressing SPACE
             if event.key == pygame.K_SPACE:
-                current_entry = trail[0]
-                current_room = current_entry['room']
-                print(f"Current room: {current_room.get('name', 'Unknown')}")
-                print(f"Type: {current_room.get('type', 'Unknown')}")
-                print(f"Entry text: {current_room.get('entry_text', 'No description')}")
-                print(f"Loot: {current_entry.get('loot', [])}")
-                print(f"Already looted: {current_entry.get('looted', False)}")
+                debug_current_entry = trail[0]
+                debug_current_room = debug_current_entry['room']
+                print(f"Current room: {debug_current_room.get('name', 'Unknown')}")
+                print(f"Type: {debug_current_room.get('type', 'Unknown')}")
+                print(f"Entry text: {debug_current_room.get('entry_text', 'No description')}")
+                print(f"Loot: {debug_current_entry.get('loot', [])}")
+                print(f"Already looted: {debug_current_entry.get('looted', False)}")
                 print(f"Backpack ({len(backpack)}/{BACKPACK_CAPACITY}): {backpack}")
 
             # Loot collection with L key
             if event.key == pygame.K_l:
-                current_entry = trail[0]
-                if not current_entry.get('looted', False) and current_entry.get('loot', []):
-                    loot_items = current_entry['loot']
+                loot_current_entry = trail[0]
+                if not loot_current_entry.get('looted', False) and loot_current_entry.get('loot', []):
+                    loot_available_items = loot_current_entry['loot']
                     collected_items = []
 
-                    for item in loot_items:
-                        if add_to_backpack(item):
-                            collected_items.append(item)
+                    for loot_item in loot_available_items:
+                        if add_to_backpack(loot_item):
+                            collected_items.append(loot_item)
                         else:
                             break  # Stop if backpack is full
 
                     if collected_items:
-                        current_entry['looted'] = True
+                        loot_current_entry['looted'] = True
                         print(f"Collected: {', '.join(collected_items)}")
                     else:
                         print("No room in backpack or no loot to collect!")
                 else:
-                    if current_entry.get('looted', False):
+                    if loot_current_entry.get('looted', False):
                         print("This room has already been looted.")
                     else:
                         print("No loot in this room.")
@@ -492,7 +519,7 @@ while running:
     view_min_y = min_y - BUFFER_TILES
     view_max_y = max_y + BUFFER_TILES
 
-    view_width = int(view_max_x - view_min_x) + 1
+    view_width = int(view_max_x - view_min_x + 1)
     view_height = int(view_max_y - view_min_y) + 1
 
     # Use GAME_WIDTH instead of SCREEN_WIDTH for tile size calculation
@@ -515,20 +542,20 @@ while running:
     screen.fill(BACKGROUND_COLOR)
 
     # 1. Draw full background grid (only in game area)
-    grid_start_x = camera_offset[0] % tile_size - tile_size
-    grid_start_y = camera_offset[1] % tile_size - tile_size
+    grid_start_x = int(round(camera_offset[0] % tile_size - tile_size))
+    grid_start_y = int(round(camera_offset[1] % tile_size - tile_size))
 
-    for x in range(int(grid_start_x), GAME_WIDTH + tile_size, tile_size):
-        for y in range(int(grid_start_y), SCREEN_HEIGHT + tile_size, tile_size):
+    for x in range(grid_start_x, GAME_WIDTH + tile_size, tile_size):
+        for y in range(grid_start_y, SCREEN_HEIGHT + tile_size, tile_size):
             if x < GAME_WIDTH:  # Only draw grid in game area
                 rect = pygame.Rect(x, y, min(tile_size, GAME_WIDTH - x), tile_size)
                 pygame.draw.rect(screen, TILE_BORDER_COLOR, rect, 1)
 
     # 2. Draw trail gradient (excluding current player position)
     trail_without_player = trail[1:]  # Exclude current position
-    for idx, entry in enumerate(reversed(trail_without_player)):
+    for idx, tile in enumerate(reversed(trail_without_player)):
         color = get_gradient_color(idx, len(trail_without_player))
-        x, y = entry['pos']
+        x, y = tile['pos']
         screen_x = camera_offset[0] + (x - view_min_x) * tile_size
         screen_y = camera_offset[1] + (y - view_min_y) * tile_size
         if screen_x < GAME_WIDTH:  # Only draw if in game area
@@ -536,18 +563,18 @@ while running:
             pygame.draw.rect(screen, color, rect)
 
     # 3. Draw room content (only for tiles in memory trail)
-    for entry in trail:
-        x, y = entry['pos']
+    for tile in trail:
+        x, y = tile['pos']
         if view_min_x <= x <= view_max_x and view_min_y <= y <= view_max_y:
             screen_x = camera_offset[0] + (x - view_min_x) * tile_size
             screen_y = camera_offset[1] + (y - view_min_y) * tile_size
 
             if screen_x < GAME_WIDTH:  # Only draw if in game area
-                room = entry['room']
-                room_type = room.get('type', 'room')
+                tile_room = tile['room']
+                tile_room_type = tile_room.get('type', 'room')
 
                 # Try to get color from room data, fallback to default
-                color_str = room.get('color', '')
+                color_str = tile_room.get('color', '')
                 color = parse_color(color_str)
 
                 # Draw content as circle in center of tile
@@ -556,13 +583,13 @@ while running:
                 radius = max(3, tile_size // 4)
                 pygame.draw.circle(screen, color, (center_x, center_y), radius)
                 # Draw room type text at bottom center of tile
-                room_type_label = font.render(room_type.upper(), True, (180, 180, 180))
-                label_rect = room_type_label.get_rect(center=(center_x, screen_y + tile_size - 10))
-                screen.blit(room_type_label, label_rect)
+                tile_room_type_label = font.render(tile_room_type.upper(), True, (180, 180, 180))
+                label_rect = tile_room_type_label.get_rect(center=(center_x, screen_y + tile_size - 10))
+                screen.blit(tile_room_type_label, label_rect)
 
 
                 # Draw loot indicator if room has unlooteed items
-                if entry.get('loot', []) and not entry.get('looted', False):
+                if tile.get('loot', []) and not tile.get('looted', False):
                     # Draw a small sparkle/star to indicate loot
                     sparkle_color = (255, 255, 0)  # Yellow
                     sparkle_size = max(2, tile_size // 8)

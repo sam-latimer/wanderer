@@ -1,9 +1,0 @@
-name	type	probability	max_loot	entry_text	inspect_passed	inspect_failed	action1	action2	action3	action4	action5
-Empty Room	room	1	6	There doesn't seem to be anything here.					Leave	Take Loot	Search+
-Loot	loot	4	10	Loot! Sweet, shiny loot!					Leave	Take Loot	Search+
-Locked Chest	key_loot	2	16	You find an elaborate chest, with ??? jewels gleaming on every edge. It is locked.			Unlock		Leave	Take Loot	Search+
-Arrow Trap	trap	3	16	As you enter the room, your ankle gets hooked on a tripwire and arrows shoot at you.			Take Another Step	Turn Around		Take Loot	
-Feast	eat	1	10	You find a lavish feast worthy of a king laid out, with no one else in sight.			Eat	Gorge+	Leave	Take Loot	Search+
-Fountain	drink	1	10	There is a serene fountain gently bubbling nearby.			Drink	Fill Canteens+	Leave	Take Loot	Search+
-Guest Room	heal	0	10	You find a guest bedroom, with a comfy-looking bed.			Nap	Sleep+		Take Loot	Search+
-TODO	riddle	0					?	?	?	Take Loot	Search+
