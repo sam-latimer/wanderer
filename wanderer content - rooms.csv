@@ -1,0 +1,9 @@
+type,name,color,probability,max_loot,flavor_text,inspect_passed,inspect_failed,action1,action2,action3,action4,action5
+room,Empty Room,gray,1,6,There doesn't seem to be anything here.,,,,,Leave,Take Loot,Search+
+loot,Loot,yellow,4,10,"Loot! Sweet, shiny loot!",,,,,Leave,Take Loot,Search+
+key_loot,Locked Chest,gold,2,16,"You find an elaborate chest, with ??? jewels gleaming on every edge. It is locked.",,,Unlock,,Leave,Take Loot,Search+
+trap,Arrow Trap,red,3,16,"As you enter the room, your ankle gets hooked on a tripwire and arrows shoot at you.",,,Take Another Step,Turn Around,,Take Loot,
+eat,Feast,green,1,10,"You find a lavish feast worthy of a king laid out, with no one else in sight.",,,Eat,Gorge+,Leave,Take Loot,Search+
+drink,Fountain,blue,1,10,There is a serene fountain gently bubbling nearby.,,,Drink,Fill Canteens+,Leave,Take Loot,Search+
+heal_sleep,Guest Room,,0,10,"You find a guest bedroom, with a comfy-looking bed.",,,Nap,Sleep+,,Take Loot,Search+
+riddle,TODO,,0,,,,,?,?,?,Take Loot,Search+

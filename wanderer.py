@@ -25,8 +25,8 @@ HUD_BORDER_COLOR = (60, 60, 60)
 # Default fallback color
 DEFAULT_ROOM_COLOR = (60, 60, 60)
 
-ROOMS_TSV = 'wanderer - rooms.tsv'
-ITEMS_TSV = 'wanderer - items.tsv'
+ROOMS_TSV = 'wanderer content - rooms.csv'
+ITEMS_TSV = 'wanderer content - items.csv'
 
 
 
@@ -546,7 +546,15 @@ while running:
             rect = pygame.Rect(int(screen_x), int(screen_y), tile_size, tile_size)
             pygame.draw.rect(screen, color, rect)
 
-    # 3. Draw room content (only for tiles in memory trail)
+    # 3. Draw player
+    px, py = trail[0]['pos']
+    screen_x = camera_offset[0] + (px - view_min_x) * tile_size
+    screen_y = camera_offset[1] + (py - view_min_y) * tile_size
+    if screen_x < GAME_WIDTH:  # Only draw if in game area
+        rect = pygame.Rect(int(screen_x), int(screen_y), tile_size, tile_size)
+        pygame.draw.rect(screen, PLAYER_COLOR, rect)
+
+    # 4. Draw room content (only for tiles in memory trail)
     for tile in trail:
         x, y = tile['pos']
         if view_min_x <= x <= view_max_x and view_min_y <= y <= view_max_y:
@@ -584,14 +592,6 @@ while running:
                     pygame.draw.line(screen, sparkle_color,
                                      (center_x, center_y - sparkle_size),
                                      (center_x, center_y + sparkle_size), 2)
-
-    # 4. Draw player
-    px, py = trail[0]['pos']
-    screen_x = camera_offset[0] + (px - view_min_x) * tile_size
-    screen_y = camera_offset[1] + (py - view_min_y) * tile_size
-    if screen_x < GAME_WIDTH:  # Only draw if in game area
-        rect = pygame.Rect(int(screen_x), int(screen_y), tile_size, tile_size)
-        pygame.draw.rect(screen, PLAYER_COLOR, rect)
 
     # 5. Draw HUD
     draw_hud(screen, font)
