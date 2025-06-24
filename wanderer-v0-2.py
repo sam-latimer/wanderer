@@ -147,6 +147,49 @@ class GameLogic:
         self.game_data = game_data
         self.backpack = {}
 
+    def take_loot(self, current_room: Dict) -> str:
+        if sum(self.backpack.values()) < BACKPACK_CAPACITY and len(current_room['loot']) > 0:
+            item_name = current_room['loot'].pop()
+            self.backpack[item_name] = self.backpack.get(item_name, 0) + 1
+            return f"You found {item_name}!"
+        elif sum(self.backpack.values()) >= BACKPACK_CAPACITY:
+            return "Your backpack is full!"
+        else:
+            current_room['looted'] = True
+            return "There's nothing to take."
+
+
+    def perform_action(self, action_text: str, current_room: Dict) -> str:
+        """Perform an action based on the action text"""
+        if not action_text or action_text.strip() == '':
+            return "No action available."
+
+        action = action_text.strip()
+        result_message = f"You {action.lower()}."
+
+        # Handle specific actions
+        if action.lower() == "take loot":
+            result_message = self.take_loot(current_room)
+
+        elif action.lower() == "leave":
+            result_message = "You decide to leave."
+
+        elif action.lower() == "search+":
+            # Enhanced search might find additional items
+            if random.random() < 0.3:  # 30% chance to find something
+                tier = random.randint(0, 2)
+                item = self.generate_item(tier)
+                if self.add_to_backpack(item):
+                    result_message = f"You search thoroughly and find {item}!"
+                else:
+                    result_message = f"You found {item}, but your backpack is full!"
+            else:
+                result_message = "You search but find nothing of interest."
+
+        # Add more action handlers as needed
+
+        return result_message
+
     def generate_room(self) -> Dict:
         """Generate a random room based on probabilities"""
         if not self.game_data.weighted_rooms:
@@ -198,13 +241,6 @@ class GameLogic:
 
         return loot
 
-    def add_to_backpack(self, item_name: str) -> bool:
-        """Add an item to the backpack if there's space"""
-        total_items = sum(self.backpack.values())
-        if total_items < BACKPACK_CAPACITY:
-            self.backpack[item_name] = self.backpack.get(item_name, 0) + 1
-            return True
-        return False
 
 
 # --- Game State ---
@@ -217,6 +253,8 @@ class GameState:
         self.camera_offset = [0, 0]
         self.target_offset = [0, 0]
         self.move_timer = 0
+        self.action_message = ""
+        self.message_timer = 0
         self.initialize_game()
 
     def initialize_game(self):
@@ -326,8 +364,8 @@ class Renderer:
             rect = pygame.Rect(int(screen_x), int(screen_y), tile_size, tile_size)
             pygame.draw.rect(self.screen, COLORS['player'], rect)
 
-    def draw_hud(self, current_room: Dict, backpack: Dict):
-        """Draw the HUD panel"""
+    def draw_hud(self, current_room: Dict, backpack: Dict, action_message: str = ""):
+        """Draw the HUD panel with optional action message"""
         hud_rect = pygame.Rect(GAME_WIDTH, 0, HUD_WIDTH, SCREEN_HEIGHT)
         pygame.draw.rect(self.screen, COLORS['hud_bg'], hud_rect)
         pygame.draw.line(self.screen, COLORS['hud_border'],
@@ -356,6 +394,21 @@ class Renderer:
             y_offset += 20
         y_offset += 10
 
+        # Available actions
+        text = self.font.render("Available Actions:", True, COLORS['hud_text'])
+        self.screen.blit(text, (GAME_WIDTH + padding, y_offset))
+        y_offset += 20
+
+        for i in range(1, 6):
+            action_key = f'action{i}'
+            action_text = current_room['room'].get(action_key, '')
+            if action_text and action_text.strip() != '':
+                text = self.font.render(f"{i}: {action_text}", True, COLORS['hud_text'])
+                self.screen.blit(text, (GAME_WIDTH + padding, y_offset))
+                y_offset += 20
+
+        y_offset += 10
+
         # Loot info
         if current_room.get('loot', []):
             if current_room.get('looted', False):
@@ -371,6 +424,23 @@ class Renderer:
                     self.screen.blit(text, (GAME_WIDTH + padding, y_offset))
                     y_offset += 18
         y_offset += 15
+
+        # Action message
+        if action_message:
+            # Draw a box for the message
+            message_rect = pygame.Rect(GAME_WIDTH + padding, y_offset, HUD_WIDTH - padding * 2, 40)
+            pygame.draw.rect(self.screen, (40, 40, 40), message_rect)
+            pygame.draw.rect(self.screen, COLORS['hud_border'], message_rect, 1)
+
+            # Display the message
+            wrapped_lines = wrap_text(action_message, self.font, HUD_WIDTH - padding * 4)
+            msg_y = y_offset + 5
+            for line in wrapped_lines[:2]:  # Limit to 2 lines
+                text = self.font.render(line, True, (255, 255, 100))
+                self.screen.blit(text, (GAME_WIDTH + padding * 2, msg_y))
+                msg_y += 18
+
+            y_offset += 50
 
         # Backpack
         text = self.font.render(f"Backpack ({sum(backpack.values())}/{BACKPACK_CAPACITY}):",
@@ -405,34 +475,65 @@ def main():
         dt = clock.tick(FPS) / 1000.0
         game_state.move_timer -= dt
 
+        # Update message timer
+        if game_state.message_timer > 0:
+            game_state.message_timer -= dt
+            if game_state.message_timer <= 0:
+                game_state.action_message = ""
+
         # Handle input
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN and game_state.move_timer <= 0:
                 dx, dy = 0, 0
-                if event.key in [pygame.K_w, pygame.K_UP, pygame.K_KP8]:
+                if event.key in [pygame.K_w, pygame.K_UP]:
                     dy = -1
-                elif event.key in [pygame.K_s, pygame.K_DOWN, pygame.K_KP2]:
+                elif event.key in [pygame.K_s, pygame.K_DOWN]:
                     dy = 1
-                elif event.key in [pygame.K_a, pygame.K_LEFT, pygame.K_KP4]:
+                elif event.key in [pygame.K_a, pygame.K_LEFT]:
                     dx = -1
-                elif event.key in [pygame.K_d, pygame.K_RIGHT, pygame.K_KP6]:
+                elif event.key in [pygame.K_d, pygame.K_RIGHT]:
                     dx = 1
-                elif event.key == pygame.K_l:
+                # Handle numeric keys for actions
+                elif event.key in [pygame.K_1, pygame.K_KP1]:
                     current_entry = game_state.trail[0]
-                    if not current_entry.get('looted', False) and current_entry.get('loot', []):
-                        for item in current_entry['loot']:
-                            if game_logic.add_to_backpack(item):
-                                continue
-                            else:
-                                break
-                        current_entry['looted'] = True
+                    action_text = current_entry['room'].get('action1', '')
+                    if action_text:
+                        game_state.action_message = game_logic.perform_action(action_text, current_entry)
+                        game_state.message_timer = 3.0
+                elif event.key in [pygame.K_2, pygame.K_KP2]:
+                    current_entry = game_state.trail[0]
+                    action_text = current_entry['room'].get('action2', '')
+                    if action_text:
+                        game_state.action_message = game_logic.perform_action(action_text, current_entry)
+                        game_state.message_timer = 3.0
+                elif event.key in [pygame.K_3, pygame.K_KP3]:
+                    current_entry = game_state.trail[0]
+                    action_text = current_entry['room'].get('action3', '')
+                    if action_text:
+                        game_state.action_message = game_logic.perform_action(action_text, current_entry)
+                        game_state.message_timer = 3.0
+                elif event.key in [pygame.K_4, pygame.K_KP4]:
+                    current_entry = game_state.trail[0]
+                    action_text = current_entry['room'].get('action4', '')
+                    if action_text:
+                        game_state.action_message = game_logic.perform_action(action_text, current_entry)
+                        game_state.message_timer = 3.0
+                elif event.key in [pygame.K_5, pygame.K_KP5]:
+                    current_entry = game_state.trail[0]
+                    action_text = current_entry['room'].get('action5', '')
+                    if action_text:
+                        game_state.action_message = game_logic.perform_action(action_text, current_entry)
+                        game_state.message_timer = 3.0
 
                 if dx != 0 or dy != 0:
                     target = (game_state.player_pos[0] + dx, game_state.player_pos[1] + dy)
                     game_state.move_player(target)
                     game_state.move_timer = MOVE_COOLDOWN
+                    # Clear action message when moving
+                    game_state.action_message = ""
+                    game_state.message_timer = 0
 
         # Calculate view bounds
         positions = [entry['pos'] for entry in game_state.trail]
@@ -471,7 +572,7 @@ def main():
             renderer.draw_room(entry, entry['pos'], view_bounds, game_state.camera_offset, tile_size)
 
         renderer.draw_player(game_state.player_pos, view_bounds, game_state.camera_offset, tile_size)
-        renderer.draw_hud(game_state.trail[0], game_logic.backpack)
+        renderer.draw_hud(game_state.trail[0], game_logic.backpack, game_state.action_message)
 
         pygame.display.flip()
 
