@@ -1,7 +1,7 @@
 import pygame
 import csv
 import random
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
 
 # --- Constants ---
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
@@ -19,7 +19,7 @@ COLORS = {
     'background': (30, 30, 30),
     'trail_start': (0, 200, 255),
     'trail_end': (45, 45, 45),
-    'player': (255, 255, 255),
+    'player': (32, 32, 32),
     'tile_border': (50, 50, 50),
     'hud_bg': (20, 20, 20),
     'hud_text': (255, 255, 255),
@@ -42,7 +42,7 @@ def get_gradient_color(index: int, total: int,
     if total <= 1:
         return start
     t = index / (total - 1)
-    return tuple(int(end[i] + (start[i] - end[i]) * t) for i in range(3))
+    return [int(end[i] + (start[i] - end[i]) * t) for i in range(3)]
 
 
 def parse_color(color_str: str) -> Tuple[int, int, int]:
@@ -61,17 +61,6 @@ def parse_color(color_str: str) -> Tuple[int, int, int]:
         'green': (0, 255, 0),
         'blue': (0, 0, 255)
     }
-
-    if color_str in color_map:
-        return color_map[color_str]
-
-    # Handle hex colors
-    if color_str.startswith('#'):
-        try:
-            hex_color = color_str[1:]
-            return tuple(int(hex_color[i:i + 2], 16) for i in (0, 2, 4))
-        except ValueError:
-            pass
 
     return COLORS['default_room']
 
@@ -106,7 +95,8 @@ class GameData:
         self.weighted_items = []
         self.load_data()
 
-    def load_file(self, filename: str) -> List[Dict]:
+    @staticmethod
+    def load_file(filename: str) -> List[Dict]:
         """Load CSV file and return as list of dictionaries"""
         try:
             with open(filename, 'r', encoding='utf-8') as file:
@@ -147,7 +137,7 @@ class GameLogic:
         self.game_data = game_data
         self.backpack = {}
 
-    def take_loot(self, current_room: Dict) -> str:
+    def action_take_loot(self, current_room: Dict) -> str:
         if sum(self.backpack.values()) < BACKPACK_CAPACITY and len(current_room['loot']) > 0:
             item_name = current_room['loot'].pop()
             self.backpack[item_name] = self.backpack.get(item_name, 0) + 1
@@ -169,7 +159,7 @@ class GameLogic:
 
         # Handle specific actions
         if action.lower() == "take loot":
-            result_message = self.take_loot(current_room)
+            result_message = self.action_take_loot(current_room)
 
         elif action.lower() == "leave":
             result_message = "You decide to leave."
@@ -362,7 +352,8 @@ class Renderer:
         screen_y = camera_offset[1] + (y - view_bounds['min_y']) * tile_size
         if screen_x < GAME_WIDTH:
             rect = pygame.Rect(int(screen_x), int(screen_y), tile_size, tile_size)
-            pygame.draw.rect(self.screen, COLORS['player'], rect)
+            # pygame.draw.rect(self.screen, COLORS['player'], rect)
+            pygame.draw.circle(self.screen, COLORS['player'], (int(screen_x + tile_size) // 2, int(screen_y + tile_size // 2)), 3)
 
     def draw_hud(self, current_room: Dict, backpack: Dict, action_message: str = ""):
         """Draw the HUD panel with optional action message"""
@@ -571,8 +562,9 @@ def main():
         for entry in game_state.trail:
             renderer.draw_room(entry, entry['pos'], view_bounds, game_state.camera_offset, tile_size)
 
-        renderer.draw_player(game_state.player_pos, view_bounds, game_state.camera_offset, tile_size)
         renderer.draw_hud(game_state.trail[0], game_logic.backpack, game_state.action_message)
+        renderer.draw_player(game_state.player_pos, view_bounds, game_state.camera_offset, tile_size)
+
 
         pygame.display.flip()
 
