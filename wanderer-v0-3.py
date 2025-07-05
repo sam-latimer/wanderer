@@ -662,7 +662,6 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN and game_state.move_timer <= 0:
-                # Movement
                 dx, dy = 0, 0
                 if event.key in [pygame.K_w, pygame.K_UP]:
                     dy = -1
@@ -672,8 +671,7 @@ def main():
                     dx = -1
                 elif event.key in [pygame.K_d, pygame.K_RIGHT]:
                     dx = 1
-
-                # Actions
+                # Handle numeric keys for actions
                 elif event.key in [pygame.K_1, pygame.K_KP1]:
                     current_entry = game_state.trail[0]
                     action_text = current_entry['room'].get('action1', '')
@@ -686,4 +684,77 @@ def main():
                     if action_text:
                         game_state.action_message = game_logic.perform_action(action_text, current_entry)
                         game_state.message_timer = 3.0
-                elif event.key in [pygame.K_
+                elif event.key in [pygame.K_3, pygame.K_KP3]:
+                    current_entry = game_state.trail[0]
+                    action_text = current_entry['room'].get('action3', '')
+                    if action_text:
+                        game_state.action_message = game_logic.perform_action(action_text, current_entry)
+                        game_state.message_timer = 3.0
+                elif event.key in [pygame.K_4, pygame.K_KP4]:
+                    current_entry = game_state.trail[0]
+                    action_text = current_entry['room'].get('action4', '')
+                    if action_text:
+                        game_state.action_message = game_logic.perform_action(action_text, current_entry)
+                        game_state.message_timer = 3.0
+                elif event.key in [pygame.K_5, pygame.K_KP5]:
+                    current_entry = game_state.trail[0]
+                    action_text = current_entry['room'].get('action5', '')
+                    if action_text:
+                        game_state.action_message = game_logic.perform_action(action_text, current_entry)
+                        game_state.message_timer = 3.0
+
+                if dx != 0 or dy != 0:
+                    target = (game_state.player_pos[0] + dx, game_state.player_pos[1] + dy)
+                    game_state.move_player(target)
+                    game_state.move_timer = MOVE_COOLDOWN
+                    # Clear action message when moving
+                    game_state.action_message = ""
+                    game_state.message_timer = 0
+
+        # Calculate view bounds
+        positions = [entry['pos'] for entry in game_state.trail]
+        xs = [x for x, y in positions]
+        ys = [y for x, y in positions]
+        view_bounds = {
+            'min_x': min(xs) - BUFFER_TILES,
+            'max_x': max(xs) + BUFFER_TILES,
+            'min_y': min(ys) - BUFFER_TILES,
+            'max_y': max(ys) + BUFFER_TILES
+        }
+
+        view_width = view_bounds['max_x'] - view_bounds['min_x'] + 1
+        view_height = view_bounds['max_y'] - view_bounds['min_y'] + 1
+
+        tile_size_x = GAME_WIDTH // view_width
+        tile_size_y = SCREEN_HEIGHT // view_height
+        tile_size = int(min(tile_size_x, tile_size_y))
+
+        grid_width_px = view_width * tile_size
+        grid_height_px = view_height * tile_size
+
+        # Update camera
+        game_state.target_offset[0] = (GAME_WIDTH - grid_width_px) // 2
+        game_state.target_offset[1] = (SCREEN_HEIGHT - grid_height_px) // 2
+
+        game_state.camera_offset[0] += (game_state.target_offset[0] - game_state.camera_offset[0]) * (1 - PAN_SMOOTHING)
+        game_state.camera_offset[1] += (game_state.target_offset[1] - game_state.camera_offset[1]) * (1 - PAN_SMOOTHING)
+
+        # Render
+        screen.fill(COLORS['background'])
+        renderer.draw_grid(game_state.camera_offset, tile_size)
+        renderer.draw_trail(game_state.trail, view_bounds, game_state.camera_offset, tile_size)
+
+        for entry in game_state.trail:
+            renderer.draw_room(entry, entry['pos'], view_bounds, game_state.camera_offset, tile_size)
+
+        renderer.draw_hud(game_state.trail[0], game_logic.backpack, game_state.action_message)
+        renderer.draw_player(game_state.player_pos, view_bounds, game_state.camera_offset, tile_size)
+
+
+        pygame.display.flip()
+
+    pygame.quit()
+
+
+if __name__ == "__main__":
+    main()
