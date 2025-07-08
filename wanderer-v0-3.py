@@ -1,7 +1,7 @@
 import pygame
 import csv
 import random
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
 
 # --- Constants ---
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
@@ -55,8 +55,16 @@ def get_gradient_color(index: int, total: int,
     """Calculate gradient color between start and end colors"""
     if total <= 1:
         return start
+    
+    # Normalize index to be between 0 and 1
     t = index / (total - 1)
-    return tuple(int(end[i] + (start[i] - end[i]) * t) for i in range(3))
+    
+    # Interpolate RGB values
+    r = int(end[0] + (start[0] - end[0]) * t)
+    g = int(end[1] + (start[1] - end[1]) * t)
+    b = int(end[2] + (start[2] - end[2]) * t)
+    
+    return (r, g, b)
 
 
 def parse_color(color_str: str) -> Tuple[int, int, int]:
@@ -444,23 +452,7 @@ class Renderer:
             for y in range(grid_start_y, SCREEN_HEIGHT + tile_size, tile_size):
                 if x < GAME_WIDTH:
                     rect = pygame.Rect(x, y, min(tile_size, GAME_WIDTH - x), tile_size)
-                    pygame.draw.rect(self.screen, COLORS['tile_border'], rect, 1)
-
-    def draw_trail(self, trail: List[Dict], view_bounds: Dict, camera_offset: List[float], tile_size: int):
-        """Draw the trail of visited rooms"""
-        trail_without_player = trail[1:]  # Skip current room
-        for idx, tile in enumerate(reversed(trail_without_player)):
-            color = get_gradient_color(idx, len(trail_without_player))
-            x, y = tile['pos']
-            screen_x = camera_offset[0] + (x - view_bounds['min_x']) * tile_size
-            screen_y = camera_offset[1] + (y - view_bounds['min_y']) * tile_size
-
-            if screen_x < GAME_WIDTH:
-                rect = pygame.Rect(int(screen_x), int(screen_y), tile_size, tile_size)
-                pygame.draw.rect(self.screen, color, rect)
-
-                # Draw border
-                pygame.draw.rect(self.screen, COLORS['tile_border'], rect, 1)
+                    pygame.draw.rect(self.screen, COLORS['tile_border'], rect, 2)
 
     def draw_room(self, room_entry: Dict, pos: Tuple[int, int], view_bounds: Dict,
                   camera_offset: List[float], tile_size: int):
@@ -498,6 +490,55 @@ class Renderer:
                 pygame.draw.line(self.screen, COLORS['loot_indicator'],
                                  (center_x, center_y - sparkle_size),
                                  (center_x, center_y + sparkle_size), 2)
+
+    def draw_trail(self, trail: List[Dict], view_bounds: Dict, camera_offset: List[float], tile_size: int):
+        """Draw the trail of visited rooms with inward creeping effect"""
+        trail_without_player = trail[1:]  # Skip current room
+        
+        # Draw from oldest to newest for proper layering
+        for idx, tile in enumerate(reversed(trail_without_player)):
+            # Calculate progress (0 = newest, 1 = oldest)
+            progress = idx / max(1, len(trail_without_player) - 1)
+            
+            # Calculate color with alpha
+            start_color = COLORS['trail_start']
+            end_color = COLORS['trail_end']
+            
+            # Interpolate color with alpha
+            color = (
+                int(start_color[0] + (end_color[0] - start_color[0]) * progress),
+                int(start_color[1] + (end_color[1] - start_color[1]) * progress),
+                int(start_color[2] + (end_color[2] - start_color[2]) * progress),
+                int(255 - 155 * progress)  # Alpha from 255 to 100
+            )
+            
+            x, y = tile['pos']
+            screen_x = camera_offset[0] + (x - view_bounds['min_x']) * tile_size
+            screen_y = camera_offset[1] + (y - view_bounds['min_y']) * tile_size
+
+            if screen_x < GAME_WIDTH:
+                # Create a transparent surface for this trail tile
+                tile_surface = pygame.Surface((tile_size, tile_size), pygame.SRCALPHA)
+                
+                # Calculate the inward creep
+                # For newest tiles: thin border (outline_width = 2)
+                # For oldest tiles: almost filled (outline_width = tile_size/2 - 1)
+                min_width = 2
+                max_width = tile_size // 2 - 1
+                outline_width = int(min_width - progress * (max_width - min_width))
+                
+                # Draw the outline that creeps inward
+                pygame.draw.rect(tile_surface, color, 
+                                (0, 0, tile_size, tile_size), 0)  # Fill with semi-transparent color
+                
+                # Draw inner rect with transparent center
+                inner_rect = (outline_width, outline_width, 
+                            tile_size - 2*outline_width, tile_size - 2*outline_width)
+                if inner_rect[2] > 0 and inner_rect[3] > 0:  # Make sure we don't have negative dimensions
+                    pygame.draw.rect(tile_surface, (0, 0, 0, 0), inner_rect, 0)  # Transparent inner
+                
+                # Blit the trail tile to the screen
+                self.screen.blit(tile_surface, (int(screen_x), int(screen_y)))
 
     def draw_player(self, pos: Tuple[int, int], view_bounds: Dict,
                     camera_offset: List[float], tile_size: int):
@@ -742,11 +783,11 @@ def main():
         # Render
         screen.fill(COLORS['background'])
         renderer.draw_grid(game_state.camera_offset, tile_size)
-        renderer.draw_trail(game_state.trail, view_bounds, game_state.camera_offset, tile_size)
 
         for entry in game_state.trail:
             renderer.draw_room(entry, entry['pos'], view_bounds, game_state.camera_offset, tile_size)
 
+        renderer.draw_trail(game_state.trail, view_bounds, game_state.camera_offset, tile_size)
         renderer.draw_hud(game_state.trail[0], game_logic.backpack, game_state.action_message)
         renderer.draw_player(game_state.player_pos, view_bounds, game_state.camera_offset, tile_size)
 
