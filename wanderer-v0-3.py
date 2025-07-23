@@ -55,15 +55,15 @@ def get_gradient_color(index: int, total: int,
     """Calculate gradient color between start and end colors"""
     if total <= 1:
         return start
-    
+
     # Normalize index to be between 0 and 1
     t = index / (total - 1)
-    
+
     # Interpolate RGB values
     r = int(end[0] + (start[0] - end[0]) * t)
     g = int(end[1] + (start[1] - end[1]) * t)
     b = int(end[2] + (start[2] - end[2]) * t)
-    
+
     return (r, g, b)
 
 
@@ -257,7 +257,7 @@ class GameLogic:
             return "Your backpack is full!"
 
         item_name = current_room['loot'].pop(0)
-        self.backpack[item_name] = self.backpack.get(item_name, 0) + 1
+        self.add_to_backpack(item_name)
 
         if not current_room['loot']:
             current_room['looted'] = True
@@ -494,16 +494,16 @@ class Renderer:
     def draw_trail(self, trail: List[Dict], view_bounds: Dict, camera_offset: List[float], tile_size: int):
         """Draw the trail of visited rooms with inward creeping effect"""
         trail_without_player = trail[1:]  # Skip current room
-        
+
         # Draw from oldest to newest for proper layering
         for idx, tile in enumerate(reversed(trail_without_player)):
             # Calculate progress (0 = newest, 1 = oldest)
             progress = idx / max(1, len(trail_without_player) - 1)
-            
+
             # Calculate color with alpha
             start_color = COLORS['trail_start']
             end_color = COLORS['trail_end']
-            
+
             # Interpolate color with alpha
             color = (
                 int(start_color[0] + (end_color[0] - start_color[0]) * progress),
@@ -511,7 +511,7 @@ class Renderer:
                 int(start_color[2] + (end_color[2] - start_color[2]) * progress),
                 int(255 - 155 * progress)  # Alpha from 255 to 100
             )
-            
+
             x, y = tile['pos']
             screen_x = camera_offset[0] + (x - view_bounds['min_x']) * tile_size
             screen_y = camera_offset[1] + (y - view_bounds['min_y']) * tile_size
@@ -519,24 +519,24 @@ class Renderer:
             if screen_x < GAME_WIDTH:
                 # Create a transparent surface for this trail tile
                 tile_surface = pygame.Surface((tile_size, tile_size), pygame.SRCALPHA)
-                
+
                 # Calculate the inward creep
                 # For newest tiles: thin border (outline_width = 2)
                 # For oldest tiles: almost filled (outline_width = tile_size/2 - 1)
                 min_width = 2
                 max_width = tile_size // 2 - 1
-                outline_width = int(min_width - progress * (max_width - min_width))
-                
+                outline_width = int(min_width + progress * (max_width - min_width))
+
                 # Draw the outline that creeps inward
                 pygame.draw.rect(tile_surface, color, 
                                 (0, 0, tile_size, tile_size), 0)  # Fill with semi-transparent color
-                
+
                 # Draw inner rect with transparent center
                 inner_rect = (outline_width, outline_width, 
                             tile_size - 2*outline_width, tile_size - 2*outline_width)
                 if inner_rect[2] > 0 and inner_rect[3] > 0:  # Make sure we don't have negative dimensions
                     pygame.draw.rect(tile_surface, (0, 0, 0, 0), inner_rect, 0)  # Transparent inner
-                
+
                 # Blit the trail tile to the screen
                 self.screen.blit(tile_surface, (int(screen_x), int(screen_y)))
 
